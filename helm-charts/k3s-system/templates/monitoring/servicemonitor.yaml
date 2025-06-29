@@ -1,0 +1,33 @@
+{{- if .Values.monitoring.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: go-app-metrics
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: go-app
+spec:
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ingress-nginx-metrics
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: ingress-nginx
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  namespaceSelector:
+    matchNames:
+    - go-app
+  endpoints:
+  - port: prometheus
+    path: /metrics
+    interval: 30s
+{{- end }}

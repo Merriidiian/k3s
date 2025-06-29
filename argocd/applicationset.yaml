@@ -1,0 +1,75 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: go-app
+  namespace: argocd
+spec:
+  generators:
+  - list:
+      elements:
+      - name: vault
+        path: argocd/application/vault.yaml
+        priority: 1
+      - name: prometheus-stack
+        path: argocd/application/prometheus.yaml
+        priority: 2
+      - name: argo-rollouts
+        path: argocd/application/argo-rollouts.yaml
+        priority: 3
+      - name: go-app
+        path: argocd/application/go-app.yaml
+        priority: 4
+  
+  template:
+    metadata:
+      name: '{{name}}'
+      namespace: argocd
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/Merriidiian/k3s
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc.cluster.local
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+      syncWaves:
+        - order: '{{priority}}'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: go-app-infrastructure
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/Merriidiian/k3s
+    targetRevision: HEAD
+    path: argocd
+  
+  destination:
+    server: https://kubernetes.default.svc.cluster.local
+    namespace: argocd
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground 

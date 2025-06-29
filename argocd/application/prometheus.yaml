@@ -1,0 +1,153 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-stack
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: prometheus-stack
+spec:
+  project: default
+  
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "45.0.0"
+    helm:
+      values: |
+        prometheus:
+          prometheusSpec:
+            retention: 15d
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: standard
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
+            
+            serviceMonitorSelectorNilUsesHelmValues: false
+            serviceMonitorSelector: {}
+            serviceMonitorNamespaceSelector: {}
+            
+            resources:
+              requests:
+                memory: 400Mi
+                cpu: 100m
+              limits:
+                memory: 1Gi
+                cpu: 500m
+        
+        grafana:
+          enabled: true
+          
+          adminPassword: root228
+          
+          persistence:
+            enabled: true
+            size: 5Gi
+            storageClassName: standard
+          
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts:
+              - grafana.local
+            paths:
+              - /
+          
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 200m
+          
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+              - name: 'grafana-dashboards-kubernetes'
+                orgId: 1
+                folder: 'Kubernetes'
+                type: file
+                disableDeletion: true
+                editable: true
+                options:
+                  path: /var/lib/grafana/dashboards/grafana-dashboards-kubernetes
+          
+          dashboards:
+            grafana-dashboards-kubernetes:
+              k8s-cluster-rsrc-use:
+                gnetId: 15757
+                revision: 37
+                datasource: Prometheus
+              k8s-node-rsrc-use:
+                gnetId: 15759
+                revision: 29
+                datasource: Prometheus
+              nginx-ingress:
+                gnetId: 9614
+                revision: 1
+                datasource: Prometheus
+              argo-rollouts:
+                gnetId: 15386
+                revision: 2
+                datasource: Prometheus
+        
+        alertmanager:
+          enabled: true
+          
+          alertmanagerSpec:
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: standard
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 5Gi
+            
+            resources:
+              requests:
+                memory: 128Mi
+                cpu: 100m
+              limits:
+                memory: 256Mi
+                cpu: 200m
+        
+        kubeStateMetrics:
+          enabled: true
+        
+        nodeExporter:
+          enabled: true
+        
+        prometheusOperator:
+          enabled: true
+          
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
+              cpu: 200m
+  
+  destination:
+    server: https://kubernetes.default.svc.cluster.local
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m 

@@ -1,0 +1,67 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: vault
+spec:
+  project: default
+  
+  source:
+    repoURL: https://helm.releases.hashicorp.com
+    chart: vault
+    targetRevision: "0.24.0"
+    helm:
+      values: |
+        server:
+          dev:
+            enabled: true
+            devRootToken: "root"
+          
+          service:
+            type: ClusterIP
+            port: 8200
+          
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts:
+              - host: vault.local
+                paths:
+                  - /
+          
+          dataStorage:
+            enabled: true
+            size: 5Gi
+            mountPath: "/vault/data"
+            storageClass: standard
+          
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 250m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+        
+        injector:
+          enabled: false
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m 

@@ -1,0 +1,84 @@
+global:
+  namespace: go-app
+  domain: local
+  imageRegistry: docker.io
+
+vault:
+  enabled: true
+  server:
+    dev:
+      enabled: true
+    service:
+      type: ClusterIP
+    ingress:
+      enabled: true
+      className: nginx
+      hosts:
+        - host: vault.local
+          paths:
+            - path: /
+              pathType: Prefix
+  mutatingWebhook:
+    enabled: true
+    
+bank-vaults:
+  webhook:
+    enabled: true
+    configMapName: vault-webhook-config
+    env:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_PATH: "secret"
+      VAULT_ROLE: "go-app"
+
+monitoring:
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+    ingress:
+      enabled: true
+      className: nginx
+      hosts:
+        - grafana.local
+  analysis:
+    successRateThreshold: 0.95
+    errorRateThreshold: 0.05
+    interval: 30s
+    failureLimit: 3
+
+rollouts:
+  enabled: true
+  controller:
+    metrics:
+      enabled: true
+
+
+go-app:
+  enabled: true
+  image:
+    repository: merriidiian/go-app
+    tag: latest
+  replicaCount: 2
+  vault:
+    enabled: true
+  service:
+    type: ClusterIP
+    port: 8080
+  ingress:
+    enabled: true
+    className: nginx
+    host: go-app.local
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+ingress-nginx:
+  enabled: true
+
+
+
+

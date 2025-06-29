@@ -1,0 +1,65 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argo-rollouts
+spec:
+  project: default
+  
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    targetRevision: "2.32.0"
+    helm:
+      values: |
+        controller:
+          replicas: 2
+          
+          metrics:
+            enabled: true
+            serviceMonitor:
+              enabled: true
+              namespace: monitoring
+          
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 200m
+        
+        dashboard:
+          enabled: true
+          
+          service:
+            type: ClusterIP
+            port: 3100
+          
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts:
+              - rollouts.local
+            paths:
+              - /
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m 

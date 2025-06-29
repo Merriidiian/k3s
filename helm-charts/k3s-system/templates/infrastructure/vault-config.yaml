@@ -1,0 +1,96 @@
+{{- if .Values.vault.enabled }}
+# Bank-Vaults Webhook Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-webhook-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  vault-addr: "http://vault:8200"
+  vault-path: "secret"
+  vault-role: "go-app"
+---
+# Vault Auth Role
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-auth-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  auth.hcl: |
+    # Kubernetes auth backend config
+    auth "kubernetes" {
+      role "go-app" {
+        bound_service_account_names = ["default"]
+        bound_service_account_namespaces = ["{{ .Values.global.namespace }}"]
+        policies = ["go-app-policy"]
+        ttl = "1h"
+      }
+    }
+    
+    # Policy for go-app
+    policy "go-app-policy" {
+      rule {
+        path "secret/data/myapp/*" {
+          capabilities = ["read"]
+        }
+      }
+    }
+---
+# Vault initialization Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init
+  namespace: {{ .Values.global.namespace }}
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: vault-init
+        image: vault:1.13.1
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          value: "root"
+        command:
+        - sh
+        - -c
+        - |
+          until vault status; do
+            echo "Waiting for vault..."
+            sleep 5
+          done
+
+          vault secrets enable -version=2 -path=secret kv || true
+
+          vault kv put secret/data/myapp \
+            secretHeader="getAdmin"
+          
+          vault kv put secret/data/myapp\
+            adminToken="777777777777777"
+          
+          vault kv put secret/data/myapp \
+            secretPass="12345"
+
+          vault auth enable kubernetes || true
+
+          vault write auth/kubernetes/config \
+            token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+            kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
+            kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+          vault policy write go-app-policy - <<EOF
+          path "secret/data/myapp/*" {
+            capabilities = ["read"]
+          }
+          EOF
+
+          vault write auth/kubernetes/role/go-app \
+            bound_service_account_names=default \
+            bound_service_account_namespaces={{ .Values.global.namespace }} \
+            policies=go-app-policy \
+            ttl=1h
+{{- end }}

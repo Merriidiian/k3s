@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: {{ .Values.global.namespace }}
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: success-rate
+    interval: {{ .Values.monitoring.analysis.interval }}
+    successCondition: result[0] >= {{ .Values.monitoring.analysis.successRateThreshold }}
+    failureCondition: result[0] < {{ .Values.monitoring.analysis.successRateThreshold }}
+    failureLimit: {{ .Values.monitoring.analysis.failureLimit }}
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          (
+            sum(rate(nginx_ingress_controller_requests_total{service="\{\{args.service-name\}\}",status!~"5.*"}[5m])) /
+            sum(rate(nginx_ingress_controller_requests_total{service="\{\{args.service-name\}\}"}[5m]))
+          ) or on() vector(1)
+  - name: error-rate
+    interval: {{ .Values.monitoring.analysis.interval }}
+    successCondition: result[0] <= {{ .Values.monitoring.analysis.errorRateThreshold }}
+    failureCondition: result[0] > {{ .Values.monitoring.analysis.errorRateThreshold }}
+    failureLimit: {{ .Values.monitoring.analysis.failureLimit }}
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          (
+            sum(rate(nginx_ingress_controller_requests_total{service="\{\{args.service-name\}\}",status=~"5.*"}[5m])) /
+            sum(rate(nginx_ingress_controller_requests_total{service="\{\{args.service-name\}\}"}[5m]))
+          ) or on() vector(0)

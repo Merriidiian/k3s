@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: go-app
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: go-app
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/Merriidiian/k3s
+    targetRevision: HEAD
+    path: helm-charts/go-app
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: global.imageRegistry
+          value: "docker.io"
+        - name: go-app.image.tag
+          value: "latest"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: go-app
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+          maxDuration: 3m

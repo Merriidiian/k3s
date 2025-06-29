@@ -1,0 +1,45 @@
+{{- if .Values.promotions.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: promotions-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.promotions.replicaCount }}
+  selector:
+    matchLabels:
+      app: promotions-service
+  template:
+    metadata:
+      annotations:
+        {{- if .Values.promotions.vault.enabled }}
+        vault.security.banzaicloud.io/vault-addr: "http://vault:8200"
+        vault.security.banzaicloud.io/vault-path: "secret/myapp"
+        vault.security.banzaicloud.io/vault-role: "go-app"
+        vault.security.banzaicloud.io/vault-skip-verify: "true"
+        {{- end }}
+      labels:
+        app: promotions-service
+    spec:
+      containers:
+      - name: promotions-service
+        image: "{{ .Values.global.imageRegistry }}/{{ .Values.go-app.image.repository }}:{{ .Values.go-app.image.tag }}"
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        {{- with .Values.promotions.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+{{- end }}

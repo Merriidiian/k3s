@@ -1,0 +1,21 @@
+{{- if and .Values.go-app.enabled .Values.go-app.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: go-app-service
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.go-app.ingress.className }}
+spec:
+  rules:
+  - host: {{ .Values.go-app.ingress.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: go-app-service
+            port:
+              number: 8080
+{{- end }}
