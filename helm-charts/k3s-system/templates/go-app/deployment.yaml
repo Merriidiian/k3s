@@ -1,6 +1,6 @@
 {{- if .Values.go-app.enabled }}
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: go-app-service
   namespace: {{ .Values.global.namespace }}
@@ -51,4 +51,23 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+  {{- if .Values.go-app.rollout.enabled }}
+  strategy:
+    canary:
+      canaryService: go-app-canary
+      stableService: go-app-stable
+      {{- with .Values.go-app.rollout.strategy.canary.steps }}
+      steps:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      analysis:
+        templates:
+        - templateName: success-rate
+        args:
+        - name: service-name
+          value: go-app-api
+        startingStep: 1
+        successfulRunHistoryLimit: 5
+        unsuccessfulRunHistoryLimit: 3
+  {{- end }}
 {{- end }}
