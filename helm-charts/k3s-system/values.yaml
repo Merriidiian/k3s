@@ -75,6 +75,21 @@ go-app:
     limits:
       memory: "256Mi"
       cpu: "200m"
+  rollout:
+    enabled: true
+    strategy:
+      canary:
+        steps:
+          - setWeight: 20
+          - pause: {duration: 30s}
+          - setWeight: 50
+          - pause: {duration: 30s}
+        analysis:
+          templates:
+            - templateName: success-rate
+          args:
+            - name: service-name
+              value: go-pp
 
 ingress-nginx:
   enabled: true
