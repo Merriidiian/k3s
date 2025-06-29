@@ -5,7 +5,7 @@ metadata:
   namespace: {{ .Values.global.namespace }}
 spec:
   args:
-  - name: service-name
+  - name: go-app-service
   metrics:
   - name: success-rate
     interval: {{ .Values.monitoring.analysis.interval }}
