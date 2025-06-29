@@ -15,7 +15,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: go-app-service
+            name: go-app-stable
             port:
               number: 8080
 {{- end }}
