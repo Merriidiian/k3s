@@ -2,13 +2,26 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: go-app-service
+  name: go-app-stable
   namespace: {{ .Values.global.namespace }}
 spec:
   selector:
-    app: go-app-service
+    app: go-app
   ports:
-  - port: 8080
-    targetPort: 8080
+  - port: {{ .Values.go-app.service.port }}
+    targetPort: 80
+    protocol: TCP
+---
+apiVersion: v2
+kind: Service
+metadata:
+  name: go-app-canary
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: go-app
+  ports:
+  - port: {{ .Values.go-app.service.port }}
+    targetPort: 80
     protocol: TCP
 {{- end }}
