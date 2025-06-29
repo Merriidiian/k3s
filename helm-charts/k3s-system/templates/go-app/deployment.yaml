@@ -1,31 +1,40 @@
-{{- if .Values.promotions.enabled }}
+{{- if .Values.go-app.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: promotions-service
+  name: go-app-service
   namespace: {{ .Values.global.namespace }}
 spec:
-  replicas: {{ .Values.promotions.replicaCount }}
+  replicas: {{ .Values.go-app.replicaCount }}
   selector:
     matchLabels:
-      app: promotions-service
+      app: go-app-service
   template:
     metadata:
       annotations:
-        {{- if .Values.promotions.vault.enabled }}
+        {{- if .Values.go-app.vault.enabled }}
         vault.security.banzaicloud.io/vault-addr: "http://vault:8200"
         vault.security.banzaicloud.io/vault-path: "secret/myapp"
         vault.security.banzaicloud.io/vault-role: "go-app"
         vault.security.banzaicloud.io/vault-skip-verify: "true"
         {{- end }}
       labels:
-        app: promotions-service
+        app: go-app-service
     spec:
       containers:
-      - name: promotions-service
+      - name: go-app-service
         image: "{{ .Values.global.imageRegistry }}/{{ .Values.go-app.image.repository }}:{{ .Values.go-app.image.tag }}"
         ports:
         - containerPort: 8080
+        env:
+        {{- if .Values.go-app.vault.enabled }}
+        - name: secretHeader
+          value: "vault:secret/data/myapp#secretHeader"
+        - name: adminToken
+          value: "vault:secret/data/myapp#adminToken"
+        - name: secretPass
+          value: "vault:secret/data/myapp#secretPass"
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /health
@@ -38,7 +47,7 @@ spec:
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
-        {{- with .Values.promotions.resources }}
+        {{- with .Values.go-app.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
